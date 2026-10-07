@@ -1,5 +1,6 @@
 """Session 17 - DevSecOps demo app (adapted from the instructor's demo)."""
 import datetime
+import os
 import platform
 import sys
 
@@ -68,4 +69,8 @@ def not_found(e):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    # debug=True was removed - CodeQL (py/flask-debug) flagged it because the
+    # Werkzeug debugger lets anyone run code on the server.
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "5001"))
+    app.run(host=host, port=port)
