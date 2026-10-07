@@ -1,0 +1,23 @@
+# Pod that prints some log lines, used for kubectl logs practice
+apiVersion: v1
+kind: Pod
+metadata:
+  name: logs-demo
+  labels:
+    app: logs-demo
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Application started"
+          echo "Connecting to database..."
+          echo "Database connection successful"
+          echo "Application is running"
+          while true; do
+            echo "$(date) Application is healthy"
+            sleep 5
+          done

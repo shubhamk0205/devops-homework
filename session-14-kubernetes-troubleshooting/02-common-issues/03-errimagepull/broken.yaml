@@ -1,0 +1,9 @@
+# BUG: wrong registry host name - this registry does not exist, so the pull fails at once (ErrImagePull)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: errimagepull-pod
+spec:
+  containers:
+    - name: web
+      image: registry.mycompany.invalid/nginx:1.27

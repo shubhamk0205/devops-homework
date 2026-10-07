@@ -1,0 +1,56 @@
+# Backend "orders-api" with a Service, and a client that calls it every 5 seconds.
+# BUG: client uses the hostname "orders-svc", but the Service is called "orders-api"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orders-api
+  template:
+    metadata:
+      labels:
+        app: orders-api
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-api
+spec:
+  selector:
+    app: orders-api
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: orders-client
+spec:
+  containers:
+    - name: client
+      image: busybox:1.36
+      env:
+        - name: ORDERS_URL
+          value: "http://orders-svc"
+      command:
+        - sh
+        - -c
+        - |
+          while true; do
+            if wget -q -T 3 -O /dev/null "$ORDERS_URL"; then
+              echo "$(date +%T) OK   - reached $ORDERS_URL"
+            else
+              echo "$(date +%T) FAIL - cannot reach $ORDERS_URL"
+            fi
+            sleep 5
+          done

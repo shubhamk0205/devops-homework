@@ -1,0 +1,18 @@
+# BUG: the Pod mounts a Secret "db-credentials" that was never created
+#      -> kubelet cannot mount the volume -> Pod stuck in ContainerCreating
+apiVersion: v1
+kind: Pod
+metadata:
+  name: containercreating-pod
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27
+      volumeMounts:
+        - name: db-secret
+          mountPath: /etc/db
+          readOnly: true
+  volumes:
+    - name: db-secret
+      secret:
+        secretName: db-credentials

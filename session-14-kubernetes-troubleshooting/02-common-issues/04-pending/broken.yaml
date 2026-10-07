@@ -1,0 +1,13 @@
+# BUG: asks for 500 CPU cores and 1000Gi memory - no node in the cluster has that much
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-pod
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27
+      resources:
+        requests:
+          cpu: "500"
+          memory: "1000Gi"

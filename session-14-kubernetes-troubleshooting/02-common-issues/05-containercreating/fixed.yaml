@@ -1,0 +1,26 @@
+# FIX: create the missing Secret (the Pod spec itself was fine)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+type: Opaque
+stringData:
+  username: appuser
+  password: demo-only-not-a-real-password
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: containercreating-pod
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27
+      volumeMounts:
+        - name: db-secret
+          mountPath: /etc/db
+          readOnly: true
+  volumes:
+    - name: db-secret
+      secret:
+        secretName: db-credentials

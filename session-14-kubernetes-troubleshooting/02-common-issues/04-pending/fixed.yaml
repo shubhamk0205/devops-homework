@@ -1,0 +1,16 @@
+# FIX: request a realistic amount that fits on the node
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-pod
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi

@@ -1,0 +1,9 @@
+# FIX: use the real registry (Docker Hub). "nginx:1.27" = docker.io/library/nginx:1.27
+apiVersion: v1
+kind: Pod
+metadata:
+  name: errimagepull-pod
+spec:
+  containers:
+    - name: web
+      image: docker.io/library/nginx:1.27
