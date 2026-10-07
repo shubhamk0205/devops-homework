@@ -2,9 +2,9 @@
 # The CI pipeline (job "11. GitOps - update image tag") changes the two tag lines below
 # after a successful build + scan + push + test deploy. Argo CD sees the new commit and syncs.
 backend:
-  tag: "latest"
+  tag: "4c001a7"
 frontend:
-  tag: "latest"
+  tag: "4c001a7"
 
 config:
   appEnv: minikube-gitops
