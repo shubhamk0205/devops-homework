@@ -1,0 +1,14 @@
+# SAST - CodeQL configuration
+# Only scan the source code of the final project (the repo has other sessions too).
+name: "Session 21 CodeQL config"
+
+queries:
+  - uses: security-extended
+
+paths:
+  - session-21-final-devops-project/final-devops-project/application/backend/app
+  - session-21-final-devops-project/final-devops-project/application/frontend/src
+
+paths-ignore:
+  - "**/tests/**"
+  - "**/node_modules/**"

@@ -1,0 +1,56 @@
+# Default values for the helpdesk chart.
+# The gitops values file (../../gitops/values-gitops.yaml) overrides the image tags - the CI pipeline updates it.
+
+backend:
+  image: ghcr.io/shubhamk0205/session21-helpdesk-backend
+  tag: latest
+  replicas: 2            # only used when hpa.enabled is false
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+frontend:
+  image: ghcr.io/shubhamk0205/session21-helpdesk-frontend
+  tag: latest
+  replicas: 2
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {cpu: 200m, memory: 64Mi}
+
+# private GHCR images -> a docker-registry Secret with this name must exist in the namespace
+# (created at runtime with kubectl, never committed)
+imagePullSecrets:
+  - name: ghcr-pull
+
+# non-secret settings -> ConfigMap
+config:
+  appEnv: dev
+  logLevel: INFO
+
+# database credentials -> this Secret must exist before install (keys: username, password)
+# kubectl create secret generic helpdesk-db --from-literal=username=helpdesk --from-literal=password=<random>
+database:
+  existingSecret: helpdesk-db
+  name: helpdesk
+
+postgres:
+  image: postgres:17-alpine
+  storage: 1Gi
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+ingress:
+  enabled: true
+  className: nginx
+  host: helpdesk.local
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 50
+
+# needs the Prometheus Operator CRDs (kube-prometheus-stack)
+serviceMonitor:
+  enabled: false

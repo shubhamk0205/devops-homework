@@ -1,0 +1,17 @@
+# Values used by Argo CD (see argocd-application.yaml).
+# The CI pipeline (job "11. GitOps - update image tag") changes the two tag lines below
+# after a successful build + scan + push + test deploy. Argo CD sees the new commit and syncs.
+backend:
+  tag: "latest"
+frontend:
+  tag: "latest"
+
+config:
+  appEnv: minikube-gitops
+
+ingress:
+  enabled: true
+  host: helpdesk.local
+
+serviceMonitor:
+  enabled: true

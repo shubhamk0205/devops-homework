@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    {{- include "helpdesk.labels" . | nindent 4 }}
+data:
+  APP_NAME: "HelpDesk API"
+  APP_ENV: {{ .Values.config.appEnv | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  DB_HOST: {{ .Release.Name }}-postgres
+  DB_PORT: "5432"
+  DB_NAME: {{ .Values.database.name | quote }}

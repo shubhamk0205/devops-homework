@@ -1,0 +1,14 @@
+# Secret scanning - Gitleaks configuration
+title = "Session 21 gitleaks config"
+
+# all built-in rules (AWS keys, GitHub tokens, private keys, generic API keys, ...)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Not source code"
+paths = [
+  '''\.png$''',
+  '''-report\.json$''',
+  '''package-lock\.json$''',
+]

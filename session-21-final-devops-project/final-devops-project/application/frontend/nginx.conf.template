@@ -1,0 +1,23 @@
+# The nginx image runs envsubst on this file at startup,
+# so ${BACKEND_URL} is replaced with the value of the BACKEND_URL env variable.
+#   docker compose : BACKEND_URL=http://backend:8000
+#   kubernetes     : BACKEND_URL=http://helpdesk-backend:8000  (set by the Helm chart)
+server {
+  listen 8080;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  location / {
+    try_files $uri /index.html;
+  }
+
+  # API calls from the browser go to the backend.
+  # (With the Kubernetes Ingress, /api goes straight to the backend Service and never reaches this block.)
+  location /api/ {
+    proxy_pass ${BACKEND_URL};
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}

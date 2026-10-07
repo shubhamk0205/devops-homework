@@ -1,0 +1,6 @@
+*.tar
+*-report.json
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfplan

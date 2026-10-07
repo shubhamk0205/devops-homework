@@ -1,0 +1,25 @@
+# Applied once by me (kubectl apply -f). After that Argo CD keeps the cluster equal to Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: helpdesk
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/shubhamk0205/devops-homework.git
+    targetRevision: main
+    path: session-21-final-devops-project/final-devops-project/helm/helpdesk
+    helm:
+      releaseName: helpdesk
+      valueFiles:
+        - ../../gitops/values-gitops.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: helpdesk
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

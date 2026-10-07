@@ -1,0 +1,6 @@
+HelpDesk {{ .Chart.AppVersion }} installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+Backend image : {{ .Values.backend.image }}:{{ .Values.backend.tag }}
+Frontend image: {{ .Values.frontend.image }}:{{ .Values.frontend.tag }}
+{{- if .Values.ingress.enabled }}
+Open: http://{{ .Values.ingress.host }}/
+{{- end }}

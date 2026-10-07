@@ -1,0 +1,17 @@
+{{- if .Values.serviceMonitor.enabled }}
+# tells Prometheus (kube-prometheus-stack) to scrape the backend /metrics every 15s
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-backend
+  labels:
+    {{- include "helpdesk.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+{{- end }}

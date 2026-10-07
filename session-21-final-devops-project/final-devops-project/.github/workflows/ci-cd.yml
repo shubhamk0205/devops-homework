@@ -1,0 +1,486 @@
+# Session 21 - Final DevOps project (HelpDesk app) - CI/CD + DevSecOps + GitOps
+# A copy of this file is kept in session-21-final-devops-project/final-devops-project/.github/workflows/ci-cd.yml
+# GitHub only runs workflows from the repo root .github/workflows/ folder, so this is the active copy.
+#
+# Flow:
+# Build -> Test -> SAST -> SCA -> Secret Scan -> Docker Build -> Image Scan -> Security Gate
+#       -> Push to GHCR -> Deploy to Kubernetes (kind + Helm) -> GitOps: commit new tag -> Argo CD syncs
+
+name: Session 21 - Final DevOps Project
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "session-21-final-devops-project/**"
+      - ".github/workflows/session-21-final.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "session-21-final-devops-project/**"
+      - ".github/workflows/session-21-final.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_DIR: session-21-final-devops-project/final-devops-project
+  BACKEND_IMAGE: ghcr.io/shubhamk0205/session21-helpdesk-backend
+  FRONTEND_IMAGE: ghcr.io/shubhamk0205/session21-helpdesk-frontend
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "22"
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1. BUILD - backend byte-compile + frontend production build
+  # ---------------------------------------------------------------
+  build:
+    name: "1. Build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Backend - install and compile
+        working-directory: ${{ env.PROJECT_DIR }}/application/backend
+        run: |
+          pip install -r requirements.txt
+          python -m compileall -q app && echo "Backend build OK"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Frontend - npm ci and vite build
+        working-directory: ${{ env.PROJECT_DIR }}/application/frontend
+        run: |
+          npm ci --no-fund
+          npm run build
+
+  # ---------------------------------------------------------------
+  # 2. TEST - pytest (SQLite test database, not the real one)
+  # ---------------------------------------------------------------
+  test:
+    name: "2. Test"
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT_DIR }}/application/backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run pytest
+        run: pytest -v --cov=app --cov-report=term-missing --junitxml=test-results.xml
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report
+          path: ${{ env.PROJECT_DIR }}/application/backend/test-results.xml
+
+  # ---------------------------------------------------------------
+  # 3. SAST - CodeQL (python + javascript)
+  # ---------------------------------------------------------------
+  sast:
+    name: "3. SAST (CodeQL)"
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python, javascript-typescript
+          config-file: ./session-21-final-devops-project/final-devops-project/security/codeql-config.yml
+
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: session-21-sast
+          output: sarif-results
+
+      - name: Count findings
+        id: count
+        run: |
+          COUNT=$(jq -s '[.[].runs[].results[]] | length' sarif-results/*.sarif)
+          echo "CodeQL findings: $COUNT"
+          jq -r '.runs[].results[] | "- \(.ruleId) at \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"' sarif-results/*.sarif
+          echo "findings=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SAST report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sast-report
+          path: sarif-results/
+
+  # ---------------------------------------------------------------
+  # 4. SCA - pip-audit (backend) + npm audit (frontend)
+  # ---------------------------------------------------------------
+  sca:
+    name: "4. SCA (pip-audit + npm audit)"
+    needs: sast
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT_DIR }}/application
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: pip-audit (backend/requirements.txt)
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt --format json --output pip-audit-report.json || true
+          pip-audit -r backend/requirements.txt --format columns || true
+
+      - name: npm audit (frontend/package-lock.json)
+        working-directory: ${{ env.PROJECT_DIR }}/application/frontend
+        run: |
+          npm audit --json > ../npm-audit-report.json || true
+          npm audit || true
+
+      - name: Count findings
+        id: count
+        run: |
+          PIP=$(jq '[.dependencies[].vulns[]] | length' pip-audit-report.json)
+          NPM=$(jq '.metadata.vulnerabilities.total' npm-audit-report.json)
+          echo "pip-audit findings: $PIP"
+          echo "npm audit findings: $NPM"
+          echo "findings=$((PIP + NPM))" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SCA reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sca-report
+          path: ${{ env.PROJECT_DIR }}/application/*-audit-report.json
+
+  # ---------------------------------------------------------------
+  # 5. SECRET SCAN - Gitleaks
+  # ---------------------------------------------------------------
+  secret-scan:
+    name: "5. Secret Scan (Gitleaks)"
+    needs: sca
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks version
+
+      - name: Scan project files for secrets
+        run: |
+          ./gitleaks dir "$PROJECT_DIR" \
+            --config "$PROJECT_DIR/security/gitleaks.toml" \
+            --redact --verbose \
+            --report-format json --report-path secret-scan-report.json \
+            --exit-code 0
+
+      - name: Count findings
+        id: count
+        run: |
+          COUNT=$(jq 'length' secret-scan-report.json)
+          echo "Secrets found: $COUNT"
+          echo "findings=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload secret scan report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: secret-scan-report
+          path: secret-scan-report.json
+
+  # ---------------------------------------------------------------
+  # 6. DOCKER BUILD - backend + frontend images, tag = short commit SHA
+  # ---------------------------------------------------------------
+  docker-build:
+    name: "6. Docker Build"
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Image tag = short SHA
+        id: tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build images
+        run: |
+          TAG=${{ steps.tag.outputs.tag }}
+          docker build -f docker/backend.Dockerfile  -t helpdesk-backend:$TAG  application/
+          docker build -f docker/frontend.Dockerfile -t helpdesk-frontend:$TAG application/
+          docker images | grep helpdesk
+
+      - name: Save images as tar
+        run: |
+          TAG=${{ steps.tag.outputs.tag }}
+          docker save helpdesk-backend:$TAG  -o backend.tar
+          docker save helpdesk-frontend:$TAG -o frontend.tar
+
+      - name: Upload images (artifact)
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-images
+          path: ${{ env.PROJECT_DIR }}/*.tar
+          retention-days: 1
+
+  # ---------------------------------------------------------------
+  # 7. IMAGE SCAN - Trivy on both images
+  # ---------------------------------------------------------------
+  image-scan:
+    name: "7. Image Scan (Trivy)"
+    needs: docker-build
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    env:
+      TRIVY_IMAGE: aquasec/trivy:0.75.0
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download images
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-images
+
+      - name: Scan images with Trivy
+        run: |
+          for img in backend frontend; do
+            echo "=== $img image ==="
+            docker run --rm -v "$PWD:/work" -w /work $TRIVY_IMAGE image \
+              --config "$PROJECT_DIR/security/trivy.yaml" \
+              --input $img.tar --format json --output $img-scan-report.json
+            docker run --rm -v "$PWD:/work" -w /work $TRIVY_IMAGE convert --format table $img-scan-report.json
+          done
+
+      - name: Count findings
+        id: count
+        run: |
+          B=$(jq '[.Results[]?.Vulnerabilities[]?] | length' backend-scan-report.json)
+          F=$(jq '[.Results[]?.Vulnerabilities[]?] | length' frontend-scan-report.json)
+          echo "backend HIGH/CRITICAL: $B"
+          echo "frontend HIGH/CRITICAL: $F"
+          echo "findings=$((B + F))" >> "$GITHUB_OUTPUT"
+
+      - name: Upload image scan reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-scan-report
+          path: "*-scan-report.json"
+
+  # ---------------------------------------------------------------
+  # 8. SECURITY GATE - PASS / FAIL (policy: security/security-gate-policy.md)
+  # ---------------------------------------------------------------
+  security-gate:
+    name: "8. Security Gate"
+    needs: [sast, sca, secret-scan, image-scan]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check scan results against policy
+        env:
+          SAST_RESULT: ${{ needs.sast.result }}
+          SCA_RESULT: ${{ needs.sca.result }}
+          SECRET_RESULT: ${{ needs.secret-scan.result }}
+          IMAGE_RESULT: ${{ needs.image-scan.result }}
+          SAST_FINDINGS: ${{ needs.sast.outputs.findings }}
+          SCA_FINDINGS: ${{ needs.sca.outputs.findings }}
+          SECRET_FINDINGS: ${{ needs.secret-scan.outputs.findings }}
+          IMAGE_FINDINGS: ${{ needs.image-scan.outputs.findings }}
+        run: |
+          FAIL=0
+          echo "| Check | Job result | Findings | Gate |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          check() {
+            local name="$1" result="$2" findings="$3" status="PASS"
+            if [ "$result" != "success" ] || [ "${findings:-x}" != "0" ]; then
+              status="FAIL"; FAIL=1
+            fi
+            printf "%-32s job=%-8s findings=%-4s %s\n" "$name" "$result" "${findings:--}" "$status"
+            echo "| $name | $result | ${findings:--} | $status |" >> "$GITHUB_STEP_SUMMARY"
+          }
+          check "SAST (CodeQL)"                "$SAST_RESULT"   "$SAST_FINDINGS"
+          check "SCA (pip-audit + npm audit)"  "$SCA_RESULT"    "$SCA_FINDINGS"
+          check "Secret scan (Gitleaks)"       "$SECRET_RESULT" "$SECRET_FINDINGS"
+          check "Image scan (Trivy HIGH+)"     "$IMAGE_RESULT"  "$IMAGE_FINDINGS"
+          if [ "$FAIL" -ne 0 ]; then
+            echo "SECURITY GATE: FAILED - images will NOT be pushed or deployed"
+            echo "**SECURITY GATE: FAILED** - images will not be pushed or deployed" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "SECURITY GATE: PASSED"
+          echo "**SECURITY GATE: PASSED**" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------
+  # 9. PUSH IMAGES to GitHub Container Registry
+  # ---------------------------------------------------------------
+  push:
+    name: "9. Push Images (GHCR)"
+    needs: [docker-build, security-gate]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download images
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-images
+
+      - name: Load images
+        run: |
+          docker load -i backend.tar
+          docker load -i frontend.tar
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push (tag = short SHA)
+        run: |
+          TAG=${{ needs.docker-build.outputs.tag }}
+          docker tag helpdesk-backend:$TAG  $BACKEND_IMAGE:$TAG
+          docker tag helpdesk-frontend:$TAG $FRONTEND_IMAGE:$TAG
+          docker push $BACKEND_IMAGE:$TAG
+          docker push $FRONTEND_IMAGE:$TAG
+
+  # ---------------------------------------------------------------
+  # 10. DEPLOY to Kubernetes - kind cluster in the runner + Helm chart
+  # ---------------------------------------------------------------
+  deploy:
+    name: "10. Deploy to Kubernetes (kind + Helm)"
+    needs: [docker-build, push]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: final-project
+
+      - name: Namespace + secrets (created at runtime, never stored in Git)
+        run: |
+          kubectl apply -f kubernetes/namespace.yaml
+          kubectl create secret docker-registry ghcr-pull -n helpdesk \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }}
+          kubectl create secret generic helpdesk-db -n helpdesk \
+            --from-literal=username=helpdesk \
+            --from-literal=password="$(openssl rand -hex 16)"
+
+      - name: Helm install
+        run: |
+          TAG=${{ needs.docker-build.outputs.tag }}
+          helm upgrade --install helpdesk helm/helpdesk -n helpdesk \
+            --set backend.tag=$TAG --set frontend.tag=$TAG \
+            --set config.appEnv=ci-kind --set ingress.enabled=false \
+            --wait --timeout 5m
+          helm list -n helpdesk
+
+      - name: Show resources
+        run: kubectl get deploy,pods,svc,pvc,hpa,configmap -n helpdesk -o wide
+
+      - name: Smoke test (port-forward + curl)
+        run: |
+          kubectl port-forward -n helpdesk svc/helpdesk-frontend 8080:80 > /dev/null 2>&1 &
+          sleep 5
+          echo "--- GET / (frontend) ---"
+          curl -sf http://localhost:8080/ | head -n 5
+          echo "--- GET /api/info (through frontend nginx -> backend) ---"
+          curl -sf http://localhost:8080/api/info; echo
+          echo "--- POST /api/tickets ---"
+          curl -sf -X POST http://localhost:8080/api/tickets -H 'Content-Type: application/json' \
+            -d '{"title":"Smoke test ticket from CI","priority":"LOW"}'; echo
+          echo "--- GET /api/tickets/stats ---"
+          curl -sf http://localhost:8080/api/tickets/stats; echo
+
+      - name: Backend logs
+        if: always()
+        run: kubectl logs -n helpdesk deploy/helpdesk-backend --tail=20
+
+  # ---------------------------------------------------------------
+  # 11. GITOPS - write the new tag into gitops/values-gitops.yaml
+  #     Argo CD (on my minikube) watches this file and deploys the new version.
+  # ---------------------------------------------------------------
+  gitops:
+    name: "11. GitOps - update image tag"
+    needs: [docker-build, deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Update tags in values-gitops.yaml
+        run: |
+          TAG=${{ needs.docker-build.outputs.tag }}
+          FILE=$PROJECT_DIR/gitops/values-gitops.yaml
+          sed -i "s|^  tag: .*|  tag: \"$TAG\"|" "$FILE"
+          git diff "$FILE"
+
+      - name: Commit and push ([skip ci] so it does not start the pipeline again)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PROJECT_DIR/gitops/values-gitops.yaml"
+          if git diff --cached --quiet; then echo "tag already up to date"; exit 0; fi
+          git commit -m "gitops: helpdesk image tag ${{ needs.docker-build.outputs.tag }} [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && break
+            sleep 5
+          done

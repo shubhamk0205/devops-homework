@@ -1,0 +1,12 @@
+# Container image scanning - Trivy configuration
+#   trivy image --config security/trivy.yaml --input backend.tar
+severity:
+  - HIGH
+  - CRITICAL
+
+scan:
+  scanners:
+    - vuln
+
+vulnerability:
+  ignore-unfixed: false   # also count CVEs that have no fix yet

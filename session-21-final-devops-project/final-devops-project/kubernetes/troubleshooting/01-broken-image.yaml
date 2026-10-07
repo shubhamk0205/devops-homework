@@ -1,0 +1,20 @@
+# Scenario 1 - BROKEN: the image tag does not exist in GHCR
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-image
+  namespace: helpdesk-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: lab-image}
+  template:
+    metadata:
+      labels: {app: lab-image}
+    spec:
+      imagePullSecrets: [{name: ghcr-pull}]
+      containers:
+        - name: frontend
+          image: ghcr.io/shubhamk0205/session21-helpdesk-frontend:v2.0.0   # <-- this tag was never pushed
+          ports: [{containerPort: 8080}]
+          env: [{name: BACKEND_URL, value: "http://helpdesk-backend.helpdesk.svc:8000"}]
