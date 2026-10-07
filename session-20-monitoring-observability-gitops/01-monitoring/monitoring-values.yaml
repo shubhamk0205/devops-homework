@@ -1,0 +1,36 @@
+# Small values for kube-prometheus-stack on minikube (laptop cluster)
+grafana:
+  adminPassword: admin123        # only for local demo
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+
+prometheus:
+  prometheusSpec:
+    retention: 1d
+    scrapeInterval: 15s
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+    # pick up my own PrometheusRule / ServiceMonitor even without the helm release label
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+# minikube does not expose these control plane parts, so turn them off to avoid "down" targets
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
