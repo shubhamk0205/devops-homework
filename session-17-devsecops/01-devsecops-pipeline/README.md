@@ -208,10 +208,10 @@ gh run list -R shubhamk0205/devops-homework -w "Session 17 - DevSecOps Pipeline"
 ```
 
 ```text
-completed	success	Remove the fake hardcoded password (secret scan gate demo done)	Session 17 - DevSecOps Pipeline	main	push	37672288885	4m35s	2026-10-07T19:09:02Z
-completed	failure	Add a FAKE hardcoded password on purpose to test the secret scan gate	Session 17 - DevSecOps Pipeline	main	push	37671801973	3m11s	2026-10-07T19:05:09Z
-completed	success	Fix security gate findings: remove flask debug, use alpine base, drop…	Session 17 - DevSecOps Pipeline	main	push	37671144664	4m30s	2026-10-07T19:00:10Z
-completed	failure	Add session 17 DevSecOps pipeline (first version from instructor demo)	Session 17 - DevSecOps Pipeline	main	push	37670523070	3m46s	2026-10-07T18:55:20Z
+completed	success	Remove the fake hardcoded password (secret scan gate demo done)	Session 17 - DevSecOps Pipeline	main	push	37687507156	4m33s	2026-10-07T21:10:33Z
+completed	failure	Add a FAKE hardcoded password on purpose to test the secret scan gate	Session 17 - DevSecOps Pipeline	main	push	37687120528	2m40s	2026-10-07T21:07:22Z
+completed	success	Fix security gate findings: remove flask debug, use alpine base, drop…	Session 17 - DevSecOps Pipeline	main	push	37685679346	4m16s	2026-10-07T20:55:29Z
+completed	failure	Add session 17 DevSecOps pipeline (first version from instructor demo)	Session 17 - DevSecOps Pipeline	main	push	37685536527	2m37s	2026-10-07T20:54:19Z
 ```
 
 ![Workflow run history](../screenshots/05-workflow-run-history.png)
@@ -224,26 +224,26 @@ For the first push I used the instructor's code as it was: `python:3.12-slim` ba
 `app.run(host="0.0.0.0", port=5001, debug=True)`.
 
 ```bash
-gh run view 37670523070 -R shubhamk0205/devops-homework
+gh run view 37685536527 -R shubhamk0205/devops-homework
 ```
 
 ```text
-X main Session 17 - DevSecOps Pipeline · 37670523070
+X main Session 17 - DevSecOps Pipeline · 37685536527
 
 JOBS
-✓ 1. Build in 12s (ID 112960804401)
-✓ 2. Unit Test in 20s (ID 112960902390)
-✓ 3. SAST (CodeQL) in 50s (ID 112961068242)
-✓ 4. SCA (pip-audit) in 24s (ID 112961455060)
-✓ 5. Secret Scan (Gitleaks) in 6s (ID 112961652730)
-✓ 6. Docker Build in 18s (ID 112961961781)
-✓ 7. Image Scan (Trivy) in 34s (ID 112962119315)
-X 8. Security Gate in 5s (ID 112962380246)
+✓ 1. Build in 8s (ID 113012263727)
+✓ 2. Unit Test in 11s (ID 113012331491)
+✓ 3. SAST (CodeQL) in 50s (ID 113012420914)
+✓ 4. SCA (pip-audit) in 16s (ID 113012777847)
+✓ 5. Secret Scan (Gitleaks) in 5s (ID 113012904484)
+✓ 6. Docker Build in 15s (ID 113012954308)
+✓ 7. Image Scan (Trivy) in 29s (ID 113013075877)
+X 8. Security Gate in 5s (ID 113013286724)
   ✓ Set up job
   X Check scan results against policy
   ✓ Complete job
-- 9. Push Image (GHCR) (ID 112962445011)
-- 10. Deploy to Kubernetes (kind) in 0s (ID 112962445517)
+- 9. Push Image (GHCR) (ID 113013344254)
+- 10. Deploy to Kubernetes (kind) in 0s (ID 113013345237)
 ```
 
 Log of `3. SAST (CodeQL)`:
@@ -378,34 +378,34 @@ Run #2 with these fixes was fully green.
 ## 7. Successful run (#4) - all 10 jobs green
 
 ```bash
-gh run view 37672288885 -R shubhamk0205/devops-homework
+gh run view 37687507156 -R shubhamk0205/devops-homework
 ```
 
 ```text
-✓ main Session 17 - DevSecOps Pipeline · 37672288885
+✓ main Session 17 - DevSecOps Pipeline · 37687507156
 Triggered via push about 5 minutes ago
 
 JOBS
-✓ 1. Build in 10s (ID 112966821834)
-✓ 2. Unit Test in 13s (ID 112966911201)
-✓ 3. SAST (CodeQL) in 47s (ID 112967023548)
-✓ 4. SCA (pip-audit) in 23s (ID 112967370865)
-✓ 5. Secret Scan (Gitleaks) in 10s (ID 112967558353)
-✓ 6. Docker Build in 20s (ID 112967657597)
-✓ 7. Image Scan (Trivy) in 32s (ID 112967818387)
-✓ 8. Security Gate in 5s (ID 112968066588)
-✓ 9. Push Image (GHCR) in 19s (ID 112968125188)
-✓ 10. Deploy to Kubernetes (kind) in 1m8s (ID 112968278909)
+✓ 1. Build in 10s (ID 113019004176)
+✓ 2. Unit Test in 11s (ID 113019094605)
+✓ 3. SAST (CodeQL) in 49s (ID 113019181058)
+✓ 4. SCA (pip-audit) in 23s (ID 113019527857)
+✓ 5. Secret Scan (Gitleaks) in 9s (ID 113019703661)
+✓ 6. Docker Build in 21s (ID 113019783658)
+✓ 7. Image Scan (Trivy) in 19s (ID 113019944480)
+✓ 8. Security Gate in 3s (ID 113020091567)
+✓ 9. Push Image (GHCR) in 26s (ID 113020127346)
+✓ 10. Deploy to Kubernetes (kind) in 1m16s (ID 113020317269)
 
 ARTIFACTS
-sca-report
-sast-report
 test-report
+sca-report
+image-scan-report
 secret-scan-report
 docker-image
-image-scan-report
+sast-report
 
-View this run on GitHub: https://github.com/shubhamk0205/devops-homework/actions/runs/37672288885
+View this run on GitHub: https://github.com/shubhamk0205/devops-homework/actions/runs/37687507156
 ```
 
 ![Successful run - all 10 jobs green](../screenshots/01-pipeline-success-summary.png)
@@ -418,7 +418,7 @@ Full run page with the 6 artifacts (reports + image):
 
 ![Full run page with artifacts](../screenshots/02-pipeline-success-full.png)
 
-### Output of each job (from `gh run view 37672288885 --log`)
+### Output of each job (from `gh run view 37687507156 --log`)
 
 **1. Build**
 
@@ -448,7 +448,7 @@ app/__init__.py       0      0   100%
 app/app.py           44      4    91%   51, 74-76
 -----------------------------------------------
 TOTAL                44      4    91%
-============================== 8 passed in 0.25s ===============================
+============================== 8 passed in 0.19s ===============================
 ```
 
 **3. SAST (CodeQL)** - CodeQL only extracted my app folder (from the config file):
@@ -471,17 +471,17 @@ Vulnerable dependency findings: 0
 ```text
 8.30.1
 ...
-7:10PM INF scanned ~21983 bytes (21.98 KB) in 12.3ms
-7:10PM INF no leaks found
+9:12PM INF scanned ~21977 bytes (21.98 KB) in 11ms
+9:12PM INF no leaks found
 Secrets found: 0
 ```
 
 **6. Docker Build**
 
 ```text
-#12 naming to docker.io/library/session17-app:d193b22c49d7bbf998ceec659609da2e30e3ea3e done
+#12 naming to docker.io/library/session17-app:b44653edc5f0fe0bdf99080f53ea6406c33f05c1 done
 REPOSITORY      TAG                                        IMAGE ID       CREATED        SIZE
-session17-app   d193b22c49d7bbf998ceec659609da2e30e3ea3e   f3e5e081521f   1 second ago   61MB
+session17-app   b44653edc5f0fe0bdf99080f53ea6406c33f05c1   9dc3db8b63f6   1 second ago   61MB
 ```
 
 **7. Image Scan (Trivy)**
@@ -511,9 +511,9 @@ SECURITY GATE: PASSED
 
 ```text
 The push refers to repository [ghcr.io/shubhamk0205/session17-devsecops-app]
-d193b22c49d7bbf998ceec659609da2e30e3ea3e: digest: sha256:2529b46373392ccd4acd0497967f3170f188aeeedcba134d92cf05e122148cb2 size: 2196
+b44653edc5f0fe0bdf99080f53ea6406c33f05c1: digest: sha256:669906f379e3545e9d307c1d3071ec4dd1330059bdf5c7134f9807662631efd6 size: 2196
 The push refers to repository [ghcr.io/shubhamk0205/session17-devsecops-app]
-latest: digest: sha256:2529b46373392ccd4acd0497967f3170f188aeeedcba134d92cf05e122148cb2 size: 2196
+latest: digest: sha256:669906f379e3545e9d307c1d3071ec4dd1330059bdf5c7134f9807662631efd6 size: 2196
 ```
 
 The image that was scanned is the same one that is pushed: job 6 saves it with `docker save`, jobs 7 and 9 load the same tar file from the artifact (no rebuild between scan and push).
@@ -530,31 +530,30 @@ Creating kind cluster...
  ✓ Installing CNI
  ✓ Installing StorageClass
  ✓ Waiting ≤ 1m0s for control-plane = Ready
- • Ready after 19s
+ • Ready after 17s
 Set kubectl context to "kind-devsecops"
 
 NAME                      STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION      CONTAINER-RUNTIME
-devsecops-control-plane   Ready    control-plane   22s   v1.35.0   172.18.0.2    <none>        Debian GNU/Linux 12 (bookworm)   6.17.0-1022-azure   containerd://2.2.0
+devsecops-control-plane   Ready    control-plane   21s   v1.35.0   172.18.0.2    <none>        Debian GNU/Linux 12 (bookworm)   6.17.0-1022-azure   containerd://2.2.0
 
 secret/ghcr-secret created
-          image: ghcr.io/shubhamk0205/session17-devsecops-app:d193b22c49d7bbf998ceec659609da2e30e3ea3e
+          image: ghcr.io/shubhamk0205/session17-devsecops-app:b44653edc5f0fe0bdf99080f53ea6406c33f05c1
 deployment.apps/session17-devsecops created
 service/session17-devsecops created
 
-Waiting for deployment "session17-devsecops" rollout to finish: 0 out of 2 new replicas have been updated...
 Waiting for deployment "session17-devsecops" rollout to finish: 0 of 2 updated replicas are available...
 Waiting for deployment "session17-devsecops" rollout to finish: 1 of 2 updated replicas are available...
 deployment "session17-devsecops" successfully rolled out
 
 NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES
-deployment.apps/session17-devsecops   2/2     2            2           7s    app          ghcr.io/shubhamk0205/session17-devsecops-app:d193b22c49d7bbf998ceec659609da2e30e3ea3e
+deployment.apps/session17-devsecops   2/2     2            2           10s   app          ghcr.io/shubhamk0205/session17-devsecops-app:b44653edc5f0fe0bdf99080f53ea6406c33f05c1
 
 NAME                                       READY   STATUS    RESTARTS   AGE   IP           NODE
-pod/session17-devsecops-6fd546bfbc-7mzh2   1/1     Running   0          7s    10.244.0.5   devsecops-control-plane
-pod/session17-devsecops-6fd546bfbc-jwz84   1/1     Running   0          7s    10.244.0.6   devsecops-control-plane
+pod/session17-devsecops-746bd98455-qw72r   1/1     Running   0          10s   10.244.0.5   devsecops-control-plane
+pod/session17-devsecops-746bd98455-z2sdw   1/1     Running   0          10s   10.244.0.6   devsecops-control-plane
 
-NAME                          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
-service/session17-devsecops   ClusterIP   10.96.221.94   <none>        80/TCP    7s
+NAME                          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service/session17-devsecops   ClusterIP   10.96.196.238   <none>        80/TCP    10s
 
 --- GET / ---
 <!DOCTYPE html>
@@ -569,7 +568,7 @@ service/session17-devsecops   ClusterIP   10.96.221.94   <none>        80/TCP   
 --- GET /health ---
 {"status":"healthy"}
 --- GET /api/status ---
-{"app":"DevSecOps Demo","platform":"Linux","python_version":"3.13.16","status":"running","uptime_seconds":7,"version":"1.0.0"}
+{"app":"DevSecOps Demo","platform":"Linux","python_version":"3.13.16","status":"running","uptime_seconds":10,"version":"1.0.0"}
 ```
 
 What I observed:
@@ -589,26 +588,26 @@ and the value was a made-up string like "not a real password" written in leet-sp
 otherwise Gitleaks would find it in this README.
 
 ```bash
-gh run view 37671801973 -R shubhamk0205/devops-homework
+gh run view 37687120528 -R shubhamk0205/devops-homework
 ```
 
 ```text
-X main Session 17 - DevSecOps Pipeline · 37671801973
+X main Session 17 - DevSecOps Pipeline · 37687120528
 
 JOBS
-✓ 1. Build in 15s (ID 112965139798)
-✓ 2. Unit Test in 14s (ID 112965264373)
-✓ 3. SAST (CodeQL) in 1m3s (ID 112965385181)
-✓ 4. SCA (pip-audit) in 31s (ID 112965860251)
-✓ 5. Secret Scan (Gitleaks) in 5s (ID 112966097787)
-✓ 6. Docker Build in 17s (ID 112966154855)
-✓ 7. Image Scan (Trivy) in 23s (ID 112966292442)
-X 8. Security Gate in 3s (ID 112966470534)
+✓ 1. Build in 9s (ID 113017687134)
+✓ 2. Unit Test in 14s (ID 113017765412)
+✓ 3. SAST (CodeQL) in 51s (ID 113017871687)
+✓ 4. SCA (pip-audit) in 24s (ID 113018246089)
+✓ 5. Secret Scan (Gitleaks) in 5s (ID 113018423146)
+✓ 6. Docker Build in 16s (ID 113018485313)
+✓ 7. Image Scan (Trivy) in 19s (ID 113018607333)
+X 8. Security Gate in 3s (ID 113018745592)
   ✓ Set up job
   X Check scan results against policy
   ✓ Complete job
-- 9. Push Image (GHCR) in 0s (ID 112966515726)
-- 10. Deploy to Kubernetes (kind) in 0s (ID 112966517402)
+- 9. Push Image (GHCR) in 0s (ID 113018778897)
+- 10. Deploy to Kubernetes (kind) in 0s (ID 113018780770)
 ```
 
 Log of `5. Secret Scan (Gitleaks)` (the value is redacted because of `--redact`):
@@ -620,8 +619,8 @@ RuleID:      generic-api-key
 Entropy:     4.237291
 File:        session-17-devsecops/01-devsecops-pipeline/app/config.py
 Line:        2
-7:07PM INF scanned ~22120 bytes (22.12 KB) in 14.1ms
-7:07PM WRN leaks found: 1
+9:09PM INF scanned ~22114 bytes (22.11 KB) in 14.8ms
+9:09PM WRN leaks found: 1
 Secrets found: 1
 ```
 

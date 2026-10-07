@@ -224,9 +224,9 @@ The first job prints the runner details:
 ```text
 Runner OS   : Linux
 Runner arch : X64
-Runner name : GitHub Actions 1000000008
+Runner name : GitHub Actions 1000000039
 Event       : push
-Commit      : 3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1
+Commit      : 2f47f7b009e3bd090c559b25ec43deeb1e4786b6
 ```
 
 ### Secrets
@@ -270,10 +270,13 @@ gh secret list -R shubhamk0205/devops-homework
 ```
 
 ```text
-APP_ENV_MESSAGE	2026-10-07T18:50:35Z
+APP_ENV_MESSAGE	2026-10-07T21:12:20Z
 ```
 
 What I observed: `gh secret set` prints nothing on success. `gh secret list` only shows the name and date - the value can never be read back, only used in a workflow.
+
+Note: I first created this secret before run #1 with a shorter test text (31 characters, you can see that length in the
+run #3 log below). Later I set it again with the command above (55 characters), so the manual run #4 used the new value.
 
 ---
 
@@ -291,38 +294,38 @@ I pushed the project to `main` and the workflow started automatically.
 ### Successful run (#3)
 
 ```bash
-gh run view 37670581843 -R shubhamk0205/devops-homework
+gh run view 37685570866 -R shubhamk0205/devops-homework
 ```
 
 ```text
-✓ main Session 16 - CI/CD Pipeline · 37670581843
-Triggered via push about 13 minutes ago
+✓ main Session 16 - CI/CD Pipeline · 37685570866
+Triggered via push about 16 minutes ago
 
 JOBS
-✓ CI - Test in 14s (ID 112961008055)
-✓ CI - Docker Build in 24s (ID 112961130578)
-✓ CI - Build in 7s (ID 112961130734)
-✓ CD - Push Image to GHCR in 16s (ID 112961320733)
-✓ CD - Deploy to Staging (runner) in 11s (ID 112961454437)
+✓ CI - Test in 12s (ID 113012379697)
+✓ CI - Build in 6s (ID 113012473303)
+✓ CI - Docker Build in 24s (ID 113012473353)
+✓ CD - Push Image to GHCR in 15s (ID 113012653477)
+✓ CD - Deploy to Staging (runner) in 11s (ID 113012774517)
 
 ANNOTATIONS
 ...
 
 ARTIFACTS
-test-report
 docker-image
+test-report
 app-build
 
-View this run on GitHub: https://github.com/shubhamk0205/devops-homework/actions/runs/37670581843
+View this run on GitHub: https://github.com/shubhamk0205/devops-homework/actions/runs/37685570866
 ```
 
-Run link: https://github.com/shubhamk0205/devops-homework/actions/runs/37670581843
+Run link: https://github.com/shubhamk0205/devops-homework/actions/runs/37685570866
 
 ![Successful pipeline run - all 5 jobs green and the job graph](../screenshots/01-pipeline-success-summary.png)
 
 What I observed: the job graph shows `CI - Build` and `CI - Docker Build` running side by side after `CI - Test`, then the two CD jobs.
 
-Below are the important lines from each job's log (`gh run view 37670581843 --log`):
+Below are the important lines from each job's log (`gh run view 37685570866 --log`):
 
 **CI - Test**
 
@@ -331,8 +334,8 @@ tests/test_app.py::test_add PASSED                                       [ 10%]
 ...
 tests/test_app.py::test_calc_unknown_op PASSED                           [100%]
 - generated xml file: /home/runner/work/devops-homework/devops-homework/session-16-github-actions/01-cicd-demo-project/test-results.xml -
-============================== 10 passed in 0.12s ==============================
-Artifact test-report has been successfully uploaded! Final size is 417 bytes. Artifact ID is 11505530451
+============================== 10 passed in 0.16s ==============================
+Artifact test-report has been successfully uploaded! Final size is 417 bytes. Artifact ID is 11511165823
 ```
 
 **CI - Build**
@@ -344,30 +347,30 @@ Starting Application Build
 
 Build files:
 total 24
-drwxr-xr-x 3 runner runner 4096 Oct  7 18:56 .
-drwxr-xr-x 6 runner runner 4096 Oct  7 18:56 ..
-drwxr-xr-x 2 runner runner 4096 Oct  7 18:56 app
--rw-r--r-- 1 runner runner 1168 Oct  7 18:56 app-build.tar.gz
--rw-r--r-- 1 runner runner  161 Oct  7 18:56 build-info.txt
--rw-r--r-- 1 runner runner   13 Oct  7 18:56 requirements.txt
+drwxr-xr-x 3 runner runner 4096 Oct  7 20:54 .
+drwxr-xr-x 6 runner runner 4096 Oct  7 20:54 ..
+drwxr-xr-x 2 runner runner 4096 Oct  7 20:54 app
+-rw-r--r-- 1 runner runner 1167 Oct  7 20:54 app-build.tar.gz
+-rw-r--r-- 1 runner runner  161 Oct  7 20:54 build-info.txt
+-rw-r--r-- 1 runner runner   13 Oct  7 20:54 requirements.txt
 
 Build completed successfully.
 
 Application: Session 16 CI/CD Demo
-Commit: 3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1
+Commit: 2f47f7b009e3bd090c559b25ec43deeb1e4786b6
 Run number: 3
-Build Date: Wed Oct  7 18:56:10 UTC 2026
+Build Date: Wed Oct  7 20:54:55 UTC 2026
 Build Status: SUCCESS
-Artifact app-build has been successfully uploaded! Final size is 1319 bytes. Artifact ID is 11504621921
+Artifact app-build has been successfully uploaded! Final size is 1318 bytes. Artifact ID is 11510817664
 ```
 
 **CI - Docker Build** (smoke test of the container)
 
 ```text
-#12 naming to docker.io/library/session16-demo:3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1 done
+#12 naming to docker.io/library/session16-demo:2f47f7b009e3bd090c559b25ec43deeb1e4786b6 done
 {"status":"healthy"}
 {"a":2.0,"b":3.0,"op":"add","result":5.0}
-Artifact docker-image has been successfully uploaded! Final size is 24085426 bytes. Artifact ID is 11505021689
+Artifact docker-image has been successfully uploaded! Final size is 24076356 bytes. Artifact ID is 11511385365
 ```
 
 **CD - Push Image to GHCR**
@@ -375,10 +378,10 @@ Artifact docker-image has been successfully uploaded! Final size is 24085426 byt
 ```text
 Artifact download completed successfully.
 The push refers to repository [ghcr.io/shubhamk0205/session16-cicd-demo]
-87ec1c23aedc: Pushed
+b21c15b9c04b: Pushed
 ...
-3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1: digest: sha256:83df3fb396e45737ce414e07d37c7a537b432d88944818db776ff9d298f0a018 size: 2195
-latest: digest: sha256:83df3fb396e45737ce414e07d37c7a537b432d88944818db776ff9d298f0a018 size: 2195
+2f47f7b009e3bd090c559b25ec43deeb1e4786b6: digest: sha256:2938e811dd573e1aab84a8e3c652de3ecf7d716838d468b8000d6d72653a7f6c size: 2195
+latest: digest: sha256:2938e811dd573e1aab84a8e3c652de3ecf7d716838d468b8000d6d72653a7f6c size: 2195
 ```
 
 **CD - Deploy to Staging (runner)**
@@ -386,14 +389,14 @@ latest: digest: sha256:83df3fb396e45737ce414e07d37c7a537b432d88944818db776ff9d29
 ```text
 Artifact download completed successfully.
 Application: Session 16 CI/CD Demo
-Commit: 3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1
+Commit: 2f47f7b009e3bd090c559b25ec43deeb1e4786b6
 Run number: 3
 Build Status: SUCCESS
-Status: Downloaded newer image for ghcr.io/shubhamk0205/session16-cicd-demo:3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1
-Secret length: 55 characters
+Status: Downloaded newer image for ghcr.io/shubhamk0205/session16-cicd-demo:2f47f7b009e3bd090c559b25ec43deeb1e4786b6
+Secret length: 31 characters
 Secret value in logs: ***
-9a5281b2e00c   ghcr.io/shubhamk0205/session16-cicd-demo:3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1   "python -m app.app"   3 seconds ago   Up 3 ...
-{"app":"Session 16 CI/CD Demo","endpoints":["/health","/api/calc?op=add&a=1&b=2","/api/message"],"version":"3a84b4cfbba30ec8697da470ea0bd5bbb56dc8b1"}
+9102123b6908   ghcr.io/shubhamk0205/session16-cicd-demo:2f47f7b009e3bd090c559b25ec43deeb1e4786b6   "python -m app.app"   3 seconds ago   Up 3 ...
+{"app":"Session 16 CI/CD Demo","endpoints":["/health","/api/calc?op=add&a=1&b=2","/api/message"],"version":"2f47f7b009e3bd090c559b25ec43deeb1e4786b6"}
 {"status":"healthy"}
 {"message":"***"}
 ```
@@ -401,7 +404,8 @@ Secret value in logs: ***
 What I observed:
 * The deploy job read `build-info.txt` from the `app-build` artifact made by another job - artifacts really do move files between jobs.
 * The image was pulled back from GHCR using only `GITHUB_TOKEN` (no personal token needed).
-* The secret is 55 characters long, but every place it would be printed shows `***` - even inside the JSON response from the app.
+* The secret is 31 characters long (the old value at that time), but every place it would be printed shows `***` - even inside the JSON response from the app.
+  In the manual run #4 (new value) the log says `Secret length: 55 characters`, and again only `***` is shown.
 
 The artifacts are listed at the bottom of the run page:
 
@@ -415,12 +419,12 @@ gh run list -R shubhamk0205/devops-homework -w "Session 16 - CI/CD Pipeline"
 ```
 
 ```text
-https://github.com/shubhamk0205/devops-homework/actions/runs/37672365822
+https://github.com/shubhamk0205/devops-homework/actions/runs/37688104713
 
-completed	success	Session 16 - CI/CD Pipeline	Session 16 - CI/CD Pipeline	main	workflow_dispatch	37672365822	1m19s	2026-10-07T19:09:39Z
-completed	success	Fix add() - tests pass again	Session 16 - CI/CD Pipeline	main	push	37670581843	1m16s	2026-10-07T18:55:48Z
-completed	failure	Break add() on purpose to test the pipeline	Session 16 - CI/CD Pipeline	main	push	37670252222	19s	2026-10-07T18:53:15Z
-completed	success	Add session 16 CI/CD demo project and workflow	Session 16 - CI/CD Pipeline	main	push	37669951355	1m26s	2026-10-07T18:50:52Z
+completed	success	Session 16 - CI/CD Pipeline	Session 16 - CI/CD Pipeline	main	workflow_dispatch	37688104713	1m24s	2026-10-07T21:15:31Z
+completed	success	Fix add() - tests pass again	Session 16 - CI/CD Pipeline	main	push	37685570866	1m11s	2026-10-07T20:54:36Z
+completed	failure	Break add() on purpose to test the pipeline	Session 16 - CI/CD Pipeline	main	push	37685501727	16s	2026-10-07T20:54:02Z
+completed	success	Add session 16 CI/CD demo project and workflow	Session 16 - CI/CD Pipeline	main	push	37685438300	1m32s	2026-10-07T20:53:31Z
 ```
 
 ---
@@ -449,15 +453,15 @@ FAILED tests/test_app.py::test_calc_add - assert 6.0 == 5
 Then I pushed it (run #2):
 
 ```bash
-gh run view 37670252222 -R shubhamk0205/devops-homework
+gh run view 37685501727 -R shubhamk0205/devops-homework
 ```
 
 ```text
-X main Session 16 - CI/CD Pipeline · 37670252222
-Triggered via push about 2 minutes ago
+X main Session 16 - CI/CD Pipeline · 37685501727
+Triggered via push about 17 minutes ago
 
 JOBS
-X CI - Test in 14s (ID 112959886634)
+X CI - Test in 12s (ID 113012145602)
   ✓ Set up job
   ✓ Checkout source code
   ✓ Show runner details
@@ -468,10 +472,10 @@ X CI - Test in 14s (ID 112959886634)
   - Post Setup Python
   ✓ Post Checkout source code
   ✓ Complete job
-- CI - Build (ID 112960018364)
-- CI - Docker Build (ID 112960018799)
-- CD - Push Image to GHCR (ID 112960019713)
-- CD - Deploy to Staging (runner) in 0s (ID 112960020558)
+- CI - Docker Build in 0s (ID 113012246155)
+- CI - Build in 0s (ID 113012246939)
+- CD - Deploy to Staging (runner) (ID 113012247700)
+- CD - Push Image to GHCR (ID 113012248651)
 
 ANNOTATIONS
 X Process completed with exit code 1.
@@ -480,11 +484,11 @@ CI - Test: .github#60
 ARTIFACTS
 test-report
 
-To see what failed, try: gh run view 37670252222 --log-failed
-View this run on GitHub: https://github.com/shubhamk0205/devops-homework/actions/runs/37670252222
+To see what failed, try: gh run view 37685501727 --log-failed
+View this run on GitHub: https://github.com/shubhamk0205/devops-homework/actions/runs/37685501727
 ```
 
-From the failed log (`gh run view 37670252222 --log-failed`):
+From the failed log (`gh run view 37685501727 --log-failed`):
 
 ```text
 tests/test_app.py::test_add FAILED                                       [ 10%]
@@ -493,7 +497,7 @@ tests/test_app.py::test_calc_add FAILED                                  [ 80%]
 E       assert 16 == 15
 FAILED tests/test_app.py::test_add - assert 16 == 15
 FAILED tests/test_app.py::test_calc_add - assert 6.0 == 5
-========================= 2 failed, 8 passed in 0.19s ==========================
+========================= 2 failed, 8 passed in 0.18s ==========================
 ```
 
 ![Failed run - test job red, all later jobs skipped](../screenshots/03-pipeline-failed-tests.png)

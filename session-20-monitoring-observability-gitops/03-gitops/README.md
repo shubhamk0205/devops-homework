@@ -114,14 +114,14 @@ spec:
 The Application file is kept outside `app/` (like the instructor said), otherwise Argo CD would try to manage its own Application object.
 
 Note: the files in `app/` now show the **final** state (`replicas: 3`, `nginx:1.28-alpine`). I started with `replicas: 2` and
-`nginx:1.27-alpine` and changed them with commits during the demo (see steps 5 and 7).
+`nginx:1.27-alpine` and changed them with commits during the demo (see steps 4 and 6).
 
 ---
 
 ## Step 1: Push the manifests to GitHub first
 
 Argo CD reads from GitHub, not from my laptop, so I committed and pushed `app/` before creating the Application
-(commit `64afa5e Add session 20 GitOps app manifests`, with `replicas: 2` and `nginx:1.27-alpine`).
+(commit `778cce2 Add session 20 GitOps app manifests`, with `replicas: 2` and `nginx:1.27-alpine`).
 
 ## Step 2: Install Argo CD
 
@@ -202,17 +202,17 @@ NAME             SYNC STATUS   HEALTH STATUS
 session20-mini   Synced        Healthy
 
 NAME                                 READY   STATUS    RESTARTS   AGE
-pod/session20-mini-fd49b8494-n7429   1/1     Running   0          2s
-pod/session20-mini-fd49b8494-xcn64   1/1     Running   0          2s
+pod/session20-mini-fd49b8494-j7cjc   1/1     Running   0          3s
+pod/session20-mini-fd49b8494-mssmh   1/1     Running   0          3s
 
 NAME                     TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
-service/session20-mini   ClusterIP   10.107.245.80   <none>        80/TCP    2s
+service/session20-mini   ClusterIP   10.101.60.147   <none>        80/TCP    3s
 
 NAME                             READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/session20-mini   2/2     2            2           2s
+deployment.apps/session20-mini   2/2     2            2           3s
 
 NAME                                       DESIRED   CURRENT   READY   AGE
-replicaset.apps/session20-mini-fd49b8494   2         2         2       2s
+replicaset.apps/session20-mini-fd49b8494   2         2         2       3s
 ```
 
 What I observed: I never ran `kubectl apply` on the app files. Argo CD created the namespace (because of `CreateNamespace=true`),
@@ -220,20 +220,21 @@ the Deployment and the Service from GitHub.
 
 ![Argo CD app synced with 2 replicas](../screenshots/argocd-app-synced-2-replicas.png)
 
-The UI says `Synced to main (e7d6b3e)`. That is the latest commit on `main` at that time (other homework sessions were also
-being pushed to the same repo; Argo CD always takes the newest commit of `main` and only looks at my `app/` path inside it).
+The UI says `Synced to main (4ca1c8b)`. That is the latest commit on `main` at that time (a Session 17 commit; other homework
+sessions are in the same repo. Argo CD always takes the newest commit of `main` and only looks at my `app/` path inside it).
 
 ---
 
 ## Step 4 (change 1): Scale from 2 to 3 replicas **in Git**
 
+The change (one line in `app/deployment.yaml`, committed as `ed01bf1 Scale session20-mini to three replicas`):
+
 ```bash
 sed -i '' 's/  replicas: 2/  replicas: 3/' session-20-monitoring-observability-gitops/03-gitops/app/deployment.yaml
-git diff session-20-monitoring-observability-gitops/03-gitops/app/deployment.yaml
 git add session-20-monitoring-observability-gitops/03-gitops/app/deployment.yaml
 git commit -m "Scale session20-mini to three replicas"
-git pull -q --rebase origin main
-git push origin main
+git show ed01bf1
+git push origin ed01bf1:refs/heads/main     # push only this commit
 date
 ```
 
@@ -248,13 +249,10 @@ date
      matchLabels:
        app: session20-mini
 
-[main 19cd336] Scale session20-mini to three replicas
- 1 file changed, 1 insertion(+), 1 deletion(-)
+To https://github.com/shubhamk0205/devops-homework.git
+   4ca1c8b..ed01bf1  ed01bf1 -> main
 
-To github.com:shubhamk0205/devops-homework.git
-   e7d6b3e..19cd336  main -> main
-
-Thu Oct  8 00:31:50 IST 2026
+Thu Oct  8 02:29:24 IST 2026
 ```
 
 Then I only waited (no kubectl, no clicking "Sync"):
@@ -267,25 +265,25 @@ kubectl get pods -n gitops-demo
 ```
 
 ```text
-Thu Oct  8 00:34:18 IST 2026
+Thu Oct  8 02:32:20 IST 2026
 
-19cd336b06972e5e5b7e593df5b39b517f9503e8
+ed01bf1df8194530740ee8de3f201951e480a2a4
 Synced Healthy
-successfully synced (all tasks run) at 2026-10-07T19:04:14Z
+successfully synced (all tasks run) at 2026-10-07T21:02:18Z
 
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
-session20-mini   3/3     3            3           3m9s
+session20-mini   3/3     3            3           3m27s
 
 NAME                             READY   STATUS    RESTARTS   AGE
-session20-mini-fd49b8494-dmqvf   1/1     Running   0          4s
-session20-mini-fd49b8494-n7429   1/1     Running   0          3m9s
-session20-mini-fd49b8494-xcn64   1/1     Running   0          3m9s
+session20-mini-fd49b8494-4bnhw   1/1     Running   0          2s
+session20-mini-fd49b8494-j7cjc   1/1     Running   0          3m27s
+session20-mini-fd49b8494-mssmh   1/1     Running   0          3m27s
 ```
 
-What I observed: push at 00:31:50, synced at 00:34:14 IST (19:04:14 UTC). About **2.5 minutes**, because by default Argo CD
-polls Git every ~3 minutes (with a GitHub webhook it would be almost instant). The synced revision is exactly my commit `19cd336`.
+What I observed: push at 02:29:24, synced at 02:32:18 IST (21:02:18 UTC). About **3 minutes**, because by default Argo CD
+polls Git every ~3 minutes (with a GitHub webhook it would be almost instant). The synced revision is exactly my commit `ed01bf1`.
 
-![Argo CD app synced to commit 19cd336 with 3 pods](../screenshots/argocd-app-synced-3-replicas.png)
+![Argo CD app synced to commit ed01bf1 with 3 pods](../screenshots/argocd-app-synced-3-replicas.png)
 
 ---
 
@@ -307,21 +305,21 @@ kubectl get pods -n gitops-demo
 deployment.apps/session20-mini scaled
 
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
-session20-mini   1/1     1            1           3m27s
+session20-mini   1/1     1            1           3m54s
 
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
-session20-mini   3/3     3            3           3m31s
+session20-mini   3/3     3            3           3m57s
 
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
-session20-mini   3/3     3            3           3m36s
+session20-mini   3/3     3            3           4m2s
 
 NAME                             READY   STATUS    RESTARTS   AGE
-session20-mini-fd49b8494-w7qp4   1/1     Running   0          8s
-session20-mini-fd49b8494-wlg8v   1/1     Running   0          8s
-session20-mini-fd49b8494-xcn64   1/1     Running   0          3m36s
+session20-mini-fd49b8494-bwnwk   1/1     Running   0          8s
+session20-mini-fd49b8494-fj6k8   1/1     Running   0          8s
+session20-mini-fd49b8494-mssmh   1/1     Running   0          4m2s
 ```
 
-What I observed: within ~4 seconds it was back to 3/3. Argo CD watches the cluster all the time, so drift is fixed
+What I observed: within ~3 seconds it was back to 3/3. Argo CD watches the cluster all the time, so drift is fixed
 fast (much faster than the Git poll). The manual change is simply lost, because Git still says `replicas: 3`.
 So the right way to change anything is a commit, not `kubectl`.
 
@@ -333,21 +331,20 @@ So the right way to change anything is a commit, not `kubectl`.
 sed -i '' 's/nginx:1.27-alpine/nginx:1.28-alpine/' session-20-monitoring-observability-gitops/03-gitops/app/deployment.yaml
 git add session-20-monitoring-observability-gitops/03-gitops/app/deployment.yaml
 git commit -q -m "Update session20-mini image to nginx 1.28"
-git pull -q --rebase origin main
-git push -q origin main
-git log --oneline -1
-git show f256d0c | grep -E '^[-+] '
+git push -q origin 723a452:refs/heads/main
+git log --oneline -1 723a452
+git show 723a452 | grep -E '^[-+] '
 date
 ```
 
 ```text
-f256d0c Update session20-mini image to nginx 1.28
+723a452 Update session20-mini image to nginx 1.28
 -          image: nginx:1.27-alpine
 +          image: nginx:1.28-alpine
-Thu Oct  8 00:34:57 IST 2026
+Thu Oct  8 02:33:00 IST 2026
 ```
 
-After waiting (rolling update to the new image finished at 00:38:15):
+After waiting (rolling update to the new image finished at 02:36:41):
 
 ```bash
 kubectl get application session20-mini -n argocd
@@ -362,30 +359,29 @@ kubectl logs deployment/session20-mini -n gitops-demo --tail=3
 NAME             SYNC STATUS   HEALTH STATUS
 session20-mini   Synced        Healthy
 
-NAME             READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS   IMAGES              SELECTOR
-session20-mini   3/3     3            3           7m6s   app          nginx:1.28-alpine   app=session20-mini
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS   IMAGES              SELECTOR
+session20-mini   3/3     3            3           7m48s   app          nginx:1.28-alpine   app=session20-mini
 
 NAME                              READY   STATUS    RESTARTS   AGE
-session20-mini-74cd6f498c-kvbb4   1/1     Running   0          4s
-session20-mini-74cd6f498c-mj6h5   1/1     Running   0          4s
-session20-mini-74cd6f498c-ssgq6   1/1     Running   0          12s
+session20-mini-74cd6f498c-6ks27   1/1     Running   0          3s
+session20-mini-74cd6f498c-glnfq   1/1     Running   0          2s
+session20-mini-74cd6f498c-tq7g7   1/1     Running   0          3s
 
 nginx version: nginx/1.28.3
 
-0  e7d6b3e45b9286abeee3bfcdd7534da614a0b6c4  2026-10-07T19:01:09Z
-1  19cd336b06972e5e5b7e593df5b39b517f9503e8  2026-10-07T19:04:14Z
-2  6404ce8b4530ea7314fdfde5f1e62c80c92828b3  2026-10-07T19:08:03Z
+0  4ca1c8bf0c0b4ca845255a74d5905affe2237b5b  2026-10-07T20:58:53Z
+1  ed01bf1df8194530740ee8de3f201951e480a2a4  2026-10-07T21:02:18Z
+2  723a45261020283f5d387b262ba9369706f41194  2026-10-07T21:06:37Z
 
-Found 3 pods, using pod/session20-mini-74cd6f498c-ssgq6
-2026/10/07 19:08:11 [notice] 1#1: start worker process 42
-2026/10/07 19:08:11 [notice] 1#1: start worker process 43
-2026/10/07 19:08:11 [notice] 1#1: start worker process 44
+Found 3 pods, using pod/session20-mini-74cd6f498c-6ks27
+2026/10/07 21:06:38 [notice] 1#1: start worker process 42
+2026/10/07 21:06:38 [notice] 1#1: start worker process 43
+2026/10/07 21:06:38 [notice] 1#1: start worker process 44
 ```
 
 What I observed:
 - A new ReplicaSet (`74cd6f498c`) was created and the pods were replaced one by one with nginx 1.28.
-- Argo CD history has 3 syncs: the first deploy, the scale to 3, and the image change. The last one is `6404ce8`, not my `f256d0c`,
-  because another session's commit was pushed on top before Argo CD polled; it still contains my change (same `app/` content).
+- Argo CD history has 3 syncs: the first deploy, the scale to 3, and the image change. The last one is exactly my commit `723a452`.
 - From Argo CD history you can also roll back (the "History and Rollback" button), but in GitOps the cleaner way is `git revert`.
 
 ![Argo CD after the image change (new ReplicaSet, old one scaled to 0)](../screenshots/argocd-app-image-1.28.png)
@@ -397,21 +393,15 @@ What I observed:
 ```bash
 kubectl delete -f argocd-application.yaml
 kubectl delete namespace gitops-demo
-kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml | tail -3
-kubectl delete namespace argocd
 ```
 
 ```text
 application.argoproj.io "session20-mini" deleted from argocd namespace
 namespace "gitops-demo" deleted
-Warning: deleting cluster-scoped resources, not scoped to the provided namespace
-networkpolicy.networking.k8s.io "argocd-redis-network-policy" deleted from argocd namespace
-networkpolicy.networking.k8s.io "argocd-repo-server-network-policy" deleted from argocd namespace
-networkpolicy.networking.k8s.io "argocd-server-network-policy" deleted from argocd namespace
-namespace "argocd" deleted
 ```
 
 Deleting the Application does not delete the app's resources (no finalizer was set), so I deleted the `gitops-demo` namespace myself.
+I kept Argo CD itself installed in the `argocd` namespace, because I use it again in Session 21.
 
 ---
 
@@ -425,11 +415,11 @@ Deleting the Application does not delete the app's resources (no finalizer was s
 | Desired state | What Git says (`replicas: 3`) |
 | Actual state | What is really running in the cluster (`kubectl scale` made it 1) |
 | Reconciliation | The compare-and-fix loop that brings actual state back to desired state |
-| Self-heal | Argo CD automatically undoing manual changes in the cluster (1 -> 3 in ~4 seconds in my test) |
+| Self-heal | Argo CD automatically undoing manual changes in the cluster (1 -> 3 in ~3 seconds in my test) |
 | What happens when replicas change 2 -> 3 in Git? | Argo CD detects the new commit, marks OutOfSync, applies it, Deployment controller starts one more pod, app becomes Synced/Healthy |
 
 ## What I learned
 
 - In GitOps I change the cluster only through `git push`; Argo CD did all the `kubectl apply` work.
-- Auto-sync from Git took ~2.5 minutes (polling), self-heal of drift took seconds.
+- Auto-sync from Git took ~3 minutes (polling), self-heal of drift took seconds.
 - `prune` + `selfHeal` make the cluster strictly follow Git, which is great for consistency but means hand fixes do not survive.
