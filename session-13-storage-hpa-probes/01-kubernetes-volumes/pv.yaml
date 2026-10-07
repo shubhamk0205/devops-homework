@@ -1,0 +1,15 @@
+# Static PersistentVolume created by the admin (me) by hand.
+# storageClassName "manual" so that it does not get mixed with the default "standard" class.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: student-pv
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /tmp/student-data

@@ -1,0 +1,17 @@
+# hostPath: mounts a folder from the node (minikube VM/container) into the Pod.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostpath-demo
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27
+      volumeMounts:
+        - name: host-storage
+          mountPath: /data
+  volumes:
+    - name: host-storage
+      hostPath:
+        path: /tmp/hostpath-data
+        type: DirectoryOrCreate

@@ -1,0 +1,12 @@
+# PVC asks for 500Mi from the "manual" class -> it will bind to student-pv (1Gi).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: student-pvc
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi

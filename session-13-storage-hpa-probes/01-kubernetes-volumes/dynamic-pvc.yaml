@@ -1,0 +1,13 @@
+# Dynamic provisioning: no PV is created by hand.
+# The "standard" StorageClass (minikube-hostpath provisioner) creates the PV automatically.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 500Mi
