@@ -1,0 +1,25 @@
+# Applied by me from my laptop (kubectl apply). It is kept OUTSIDE the app/ folder,
+# because app/ is the folder Argo CD watches.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: session20-mini
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/shubhamk0205/devops-homework.git
+    targetRevision: main
+    path: session-20-monitoring-observability-gitops/03-gitops/app
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitops-demo
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
