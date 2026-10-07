@@ -1,0 +1,33 @@
+# Scenario 4 - FIXED: liveness probe uses /health
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-probe
+  namespace: helpdesk-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: lab-probe}
+  template:
+    metadata:
+      labels: {app: lab-probe}
+    spec:
+      imagePullSecrets: [{name: ghcr-pull}]
+      containers:
+        - name: backend
+          image: ghcr.io/shubhamk0205/session21-helpdesk-backend:__TAG__
+          ports: [{name: http, containerPort: 8000}]
+          env:
+            - {name: APP_ENV, value: lab}
+            - {name: DB_HOST, value: helpdesk-postgres.helpdesk.svc}
+            - name: DB_USER
+              valueFrom: {secretKeyRef: {name: helpdesk-db, key: username}}
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: helpdesk-db, key: password}}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+          livenessProbe:
+            httpGet: {path: /health, port: http}     # <-- real endpoint
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 2

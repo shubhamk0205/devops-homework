@@ -1,0 +1,30 @@
+# Alert rules for the HelpDesk backend (loaded by the Prometheus Operator from kube-prometheus-stack)
+#   kubectl apply -f monitoring/prometheus-rule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: helpdesk-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: helpdesk.rules
+      rules:
+        # fires when fewer than 2 backend pods are being scraped successfully (HPA min is 2)
+        - alert: HelpDeskBackendDown
+          expr: sum(up{job="helpdesk-backend", namespace="helpdesk"}) < 2 or absent(up{job="helpdesk-backend", namespace="helpdesk"})
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "HelpDesk backend has less than 2 healthy pods"
+            description: "Prometheus can scrape only {{ $value }} backend pod(s) in namespace helpdesk."
+        # fires when more than 5% of API requests return 5xx
+        - alert: HelpDeskHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{job="helpdesk-backend", status="5xx"}[5m]))
+              / sum(rate(http_requests_total{job="helpdesk-backend"}[5m])) > 0.05
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HelpDesk backend 5xx error rate is above 5%"

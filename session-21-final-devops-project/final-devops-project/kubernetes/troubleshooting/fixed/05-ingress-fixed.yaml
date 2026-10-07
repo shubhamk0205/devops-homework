@@ -1,0 +1,27 @@
+# Scenario 5 - FIXED: Ingress backend port = Service port 8000
+# (the same bug was in the instructor's chart: backend port 8080 instead of 8000)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lab-ingress
+  namespace: helpdesk
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: lab.helpdesk.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: helpdesk-backend
+                port:
+                  number: 8000          # <-- real Service port
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: helpdesk-frontend
+                port:
+                  number: 80

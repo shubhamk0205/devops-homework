@@ -1,0 +1,20 @@
+# Scenario 1 - FIXED: use a tag that the pipeline really pushed
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-image
+  namespace: helpdesk-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: lab-image}
+  template:
+    metadata:
+      labels: {app: lab-image}
+    spec:
+      imagePullSecrets: [{name: ghcr-pull}]
+      containers:
+        - name: frontend
+          image: ghcr.io/shubhamk0205/session21-helpdesk-frontend:__TAG__   # <-- tag from gitops/values-gitops.yaml
+          ports: [{containerPort: 8080}]
+          env: [{name: BACKEND_URL, value: "http://helpdesk-backend.helpdesk.svc:8000"}]

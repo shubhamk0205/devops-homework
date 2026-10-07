@@ -1,0 +1,32 @@
+# Scenario 2 - FIXED: Service selector = Pod label
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-web
+  namespace: helpdesk-lab
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: lab-web}
+  template:
+    metadata:
+      labels: {app: lab-web}
+    spec:
+      imagePullSecrets: [{name: ghcr-pull}]
+      containers:
+        - name: frontend
+          image: ghcr.io/shubhamk0205/session21-helpdesk-frontend:__TAG__
+          ports: [{name: http, containerPort: 8080}]
+          env: [{name: BACKEND_URL, value: "http://helpdesk-backend.helpdesk.svc:8000"}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-web
+  namespace: helpdesk-lab
+spec:
+  selector:
+    app: lab-web               # <-- matches the Pod label now
+  ports:
+    - port: 80
+      targetPort: 8080
