@@ -1,0 +1,437 @@
+# Session 17 - Complete CI/CD + DevSecOps pipeline
+# A copy of this file is kept in session-17-devsecops/01-devsecops-pipeline/.github/workflows/devsecops.yml
+# GitHub only runs workflows from the repo root .github/workflows/ folder, so this is the active copy.
+#
+# Flow:
+# Code -> Build -> Unit Test -> SAST -> SCA -> Secret Scan -> Docker Build
+#      -> Container Image Scan -> Security Gate -> Push Image -> Deploy to Kubernetes
+
+name: Session 17 - DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "session-17-devsecops/**"
+      - ".github/workflows/session-17-devsecops.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "session-17-devsecops/**"
+      - ".github/workflows/session-17-devsecops.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: session-17-devsecops/01-devsecops-pipeline
+  IMAGE_NAME: ghcr.io/shubhamk0205/session17-devsecops-app
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1. BUILD - install dependencies and byte-compile the app
+  # ---------------------------------------------------------------
+  build:
+    name: "1. Build"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build (byte-compile, fails on syntax errors)
+        run: python -m compileall -q app && echo "Build OK"
+
+  # ---------------------------------------------------------------
+  # 2. UNIT TEST
+  # ---------------------------------------------------------------
+  unit-test:
+    name: "2. Unit Test"
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        run: pytest -v --cov=app --cov-report=term-missing --junitxml=test-results.xml
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report
+          path: ${{ env.APP_DIR }}/test-results.xml
+
+  # ---------------------------------------------------------------
+  # 3. SAST - CodeQL scans the source code
+  # ---------------------------------------------------------------
+  sast:
+    name: "3. SAST (CodeQL)"
+    needs: unit-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          config-file: ./session-17-devsecops/01-devsecops-pipeline/security/codeql-config.yml
+
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: session-17-sast
+          output: sarif-results
+
+      - name: Count findings
+        id: count
+        run: |
+          SARIF=$(ls sarif-results/*.sarif | head -1)
+          COUNT=$(jq '[.runs[].results[]] | length' "$SARIF")
+          echo "CodeQL findings: $COUNT"
+          jq -r '.runs[].results[] | "- \(.ruleId) at \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine) -> \(.message.text)"' "$SARIF"
+          echo "findings=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SAST report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sast-report
+          path: sarif-results/
+
+  # ---------------------------------------------------------------
+  # 4. SCA - pip-audit checks dependencies for known CVEs
+  # ---------------------------------------------------------------
+  sca:
+    name: "4. SCA (pip-audit)"
+    needs: sast
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Scan requirements.txt
+        run: |
+          pip-audit -r requirements.txt --format json --output sca-report.json || true
+          pip-audit -r requirements.txt --format columns || true
+
+      - name: Count findings
+        id: count
+        run: |
+          COUNT=$(jq '[.dependencies[].vulns[]] | length' sca-report.json)
+          echo "Vulnerable dependency findings: $COUNT"
+          echo "findings=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SCA report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sca-report
+          path: ${{ env.APP_DIR }}/sca-report.json
+
+  # ---------------------------------------------------------------
+  # 5. SECRET SCAN - gitleaks looks for passwords / keys / tokens
+  # ---------------------------------------------------------------
+  secret-scan:
+    name: "5. Secret Scan (Gitleaks)"
+    needs: sca
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks version
+
+      - name: Scan files for secrets
+        run: |
+          ./gitleaks dir "$APP_DIR" \
+            --config "$APP_DIR/security/gitleaks.toml" \
+            --redact \
+            --verbose \
+            --report-format json \
+            --report-path secret-scan-report.json \
+            --exit-code 0
+
+      - name: Count findings
+        id: count
+        run: |
+          COUNT=$(jq 'length' secret-scan-report.json)
+          echo "Secrets found: $COUNT"
+          echo "findings=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload secret scan report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: secret-scan-report
+          path: secret-scan-report.json
+
+  # ---------------------------------------------------------------
+  # 6. DOCKER BUILD
+  # ---------------------------------------------------------------
+  docker-build:
+    name: "6. Docker Build"
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Build Docker image
+        run: |
+          docker build -t session17-app:${{ github.sha }} .
+          docker images session17-app
+
+      - name: Save image as tar
+        run: docker save session17-app:${{ github.sha }} -o image.tar
+
+      - name: Upload image (artifact)
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: ${{ env.APP_DIR }}/image.tar
+          retention-days: 1
+
+  # ---------------------------------------------------------------
+  # 7. CONTAINER IMAGE SCAN - Trivy scans OS packages + python libs
+  # ---------------------------------------------------------------
+  image-scan:
+    name: "7. Image Scan (Trivy)"
+    needs: docker-build
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.count.outputs.findings }}
+    env:
+      TRIVY_IMAGE: aquasec/trivy:0.75.0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+
+      - name: Scan image with Trivy
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work $TRIVY_IMAGE image \
+            --config "$APP_DIR/security/trivy.yaml" \
+            --input image.tar \
+            --format json --output image-scan-report.json
+          # print a readable table in the log
+          docker run --rm -v "$PWD:/work" -w /work $TRIVY_IMAGE convert \
+            --format table image-scan-report.json
+
+      - name: Count findings
+        id: count
+        run: |
+          COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' image-scan-report.json)
+          echo "HIGH/CRITICAL vulnerabilities: $COUNT"
+          echo "findings=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload image scan report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-scan-report
+          path: image-scan-report.json
+
+  # ---------------------------------------------------------------
+  # 8. SECURITY GATE - decides PASS / FAIL using the policy below
+  # ---------------------------------------------------------------
+  security-gate:
+    name: "8. Security Gate"
+    needs: [sast, sca, secret-scan, image-scan]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check scan results against policy
+        env:
+          SAST_RESULT: ${{ needs.sast.result }}
+          SCA_RESULT: ${{ needs.sca.result }}
+          SECRET_RESULT: ${{ needs.secret-scan.result }}
+          IMAGE_RESULT: ${{ needs.image-scan.result }}
+          SAST_FINDINGS: ${{ needs.sast.outputs.findings }}
+          SCA_FINDINGS: ${{ needs.sca.outputs.findings }}
+          SECRET_FINDINGS: ${{ needs.secret-scan.outputs.findings }}
+          IMAGE_FINDINGS: ${{ needs.image-scan.outputs.findings }}
+        run: |
+          # Policy: every scan must have run successfully AND found 0 issues
+          #   SAST   : 0 CodeQL security findings
+          #   SCA    : 0 known vulnerabilities in Python dependencies
+          #   Secrets: 0 secrets in the code
+          #   Image  : 0 HIGH or CRITICAL vulnerabilities in the image
+          FAIL=0
+          echo "| Check | Job result | Findings | Gate |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          check() {
+            local name="$1" result="$2" findings="$3" status="PASS"
+            if [ "$result" != "success" ] || [ "${findings:-x}" != "0" ]; then
+              status="FAIL"; FAIL=1
+            fi
+            printf "%-28s job=%-8s findings=%-4s %s\n" "$name" "$result" "${findings:--}" "$status"
+            echo "| $name | $result | ${findings:--} | $status |" >> "$GITHUB_STEP_SUMMARY"
+          }
+          check "SAST (CodeQL)"            "$SAST_RESULT"   "$SAST_FINDINGS"
+          check "SCA (pip-audit)"          "$SCA_RESULT"    "$SCA_FINDINGS"
+          check "Secret scan (Gitleaks)"   "$SECRET_RESULT" "$SECRET_FINDINGS"
+          check "Image scan (Trivy HIGH+)" "$IMAGE_RESULT"  "$IMAGE_FINDINGS"
+          if [ "$FAIL" -ne 0 ]; then
+            echo "SECURITY GATE: FAILED - image will NOT be pushed or deployed"
+            echo "**SECURITY GATE: FAILED** - image will not be pushed or deployed" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "SECURITY GATE: PASSED"
+          echo "**SECURITY GATE: PASSED**" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------
+  # 9. PUSH IMAGE to GitHub Container Registry
+  # ---------------------------------------------------------------
+  push:
+    name: "9. Push Image (GHCR)"
+    needs: security-gate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+
+      - name: Load image
+        run: docker load -i image.tar
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push
+        run: |
+          docker tag session17-app:${{ github.sha }} $IMAGE_NAME:${{ github.sha }}
+          docker tag session17-app:${{ github.sha }} $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ github.sha }}
+          docker push $IMAGE_NAME:latest
+
+  # ---------------------------------------------------------------
+  # 10. DEPLOY to Kubernetes (kind cluster inside the runner)
+  # ---------------------------------------------------------------
+  deploy:
+    name: "10. Deploy to Kubernetes (kind)"
+    needs: push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: devsecops
+
+      - name: Show cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes -o wide
+
+      - name: Create GHCR pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag in deployment
+        run: |
+          sed -i "s|__IMAGE__|$IMAGE_NAME:${{ github.sha }}|g" k8s/deployment.yaml
+          grep "image:" k8s/deployment.yaml
+
+      - name: Deploy
+        run: kubectl apply -f k8s/
+
+      - name: Wait for rollout
+        run: kubectl rollout status deployment/session17-devsecops --timeout=180s
+
+      - name: Show resources
+        run: kubectl get deploy,pods,svc -l app=session17-devsecops -o wide
+
+      - name: Test the app (port-forward + curl)
+        run: |
+          kubectl port-forward service/session17-devsecops 8080:80 > /dev/null 2>&1 &
+          sleep 5
+          echo "--- GET / ---"
+          curl -sf http://localhost:8080/ | head -n 10
+          echo "--- GET /health ---"
+          curl -sf http://localhost:8080/health
+          echo
+          echo "--- GET /api/status ---"
+          curl -sf http://localhost:8080/api/status
+          echo

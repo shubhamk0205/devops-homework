@@ -1,0 +1,14 @@
+# Gitleaks (secret scanning) configuration
+title = "Session 17 gitleaks config"
+
+# use all the built-in gitleaks rules (AWS keys, GitHub tokens, private keys, generic API keys, ...)
+[extend]
+useDefault = true
+
+# files that are not source code and should not be scanned
+[allowlist]
+description = "Ignore images and generated reports"
+paths = [
+  '''\.png$''',
+  '''-report\.json$''',
+]

@@ -1,0 +1,6 @@
+.coverage
+.pytest_cache/
+test-results.xml
+coverage.xml
+*.tar
+*-report.json

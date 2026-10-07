@@ -1,0 +1,15 @@
+# Trivy (container image scanning) configuration
+# Used with: trivy image --config security/trivy.yaml --input image.tar
+
+# only report the serious ones - the security gate blocks on these
+severity:
+  - HIGH
+  - CRITICAL
+
+scan:
+  scanners:
+    - vuln
+
+# do NOT hide vulnerabilities that have no fix yet - we want to see everything
+vulnerability:
+  ignore-unfixed: false

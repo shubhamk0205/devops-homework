@@ -1,0 +1,13 @@
+# CodeQL (SAST) configuration
+# Only scan the source code of this session's app (the repo has other sessions too).
+name: "Session 17 CodeQL config"
+
+queries:
+  # default security queries + extra security queries
+  - uses: security-extended
+
+paths:
+  - session-17-devsecops/01-devsecops-pipeline/app
+
+paths-ignore:
+  - session-17-devsecops/01-devsecops-pipeline/tests
